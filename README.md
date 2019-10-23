@@ -17,5 +17,5 @@ The player can play as long as he has sufficient funds or as long as he wants.
 This was a project for the lecture 52354-01 Smart Contracts and Decentralized Blockchain Applications in the autumn semester of 2019.
 
 ### Team members:
-  Tim Keller 17-057-282
-  Viktor Gsteiger 18-054-700
+  * Tim Keller 17-057-282
+  * Viktor Gsteiger 18-054-700
