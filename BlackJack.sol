@@ -11,18 +11,20 @@ contract BlackJack {
 
   // DECLARATION START
 
-  address private _playerAddress;
-
-  // TODO: Ist noch nicht ausgefleischt, wäre aber eine schöne
-  // Version, die Karten zu speichern
-  struct Hand {
-
+  // Habe mich dafür entschieden, weil wir so ganz einfach ein Spiel pro
+  // pro Spieler haben können, sonst haben wir ja bald ein Problem mit
+  // verschiedenen Spielern.
+  struct Game {
+    uint256 _currentBalance;
+    uint256 _randomNumber;
+    bool _turn;
+    bool _init;
   }
 
-  bool private _turn;
+  private int numberOfGames;
 
-  uint256 private _currentBalance;
-  uint256 private _randomNumber;
+  // So speichern wir am einfachsten die verschiedenen Spieler:
+  mapping(address => Game) games;
 
   // DECLARATION END
 
@@ -31,26 +33,41 @@ contract BlackJack {
   // MODIFIERS START
 
   // Modifiers
-  // Control whether Address is in fact player
-  modifier isPlayer() {
-    require(msg.sender == _playerAddress);
-    _;
-  }
 
   // To be able to only use a function during a game
   modifier inRound() {
-    require(_turn == true, "No game running.");
+    require(games[msg.sender]._turn == true, "No game running.");
     _;
   }
 
   // To be able to only use a function after or before a game
   modifier outRound() {
-    require(_turn == false, "Game running");
+    require(games[msg.sender]._turn == false, "Game running.");
     _;
+  }
+
+  modifier onlyInitialisedPlayer() {
+    require(games[msg.sender]._init == true, "You are not logged in yet.")
   }
 
   // MODIFIERS END
 
   // Functions
+
   //TODO: randomNumber, placeBet, cashOut, deal, hit, stand, showTable
+
+  // Funktion, welche beim ersten Einzahlen (bzw jedem weiteren) ausgeführt wird.
+  function setPlayer(address _address, uint256 _newBet) {
+    var game = games[_address];
+    if(game._init == false) {
+      game._currentBalance = _newBet;
+      game._init = true;
+    } else {
+      game._currentBalance += _newBet;
+    }
+  }
+
+  function getNumberOfGames() {
+    return numberOfGames;
+  }
 }
