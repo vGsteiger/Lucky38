@@ -19,12 +19,13 @@ contract BlackJack {
     uint256 _currentBalance;
     uint256 _currentBet;
     uint256 _randomNumber;
+    uint256 _cardTotal;
     bool _turn;
     bool _init;
-    Card _currentHand[22];
+    Cards _currentHand[22];
   }
 
-  struct Card {
+  struct Cards {
     uint256 _value;
   }
 
@@ -104,7 +105,15 @@ contract BlackJack {
     // Anzahl Spiele erhöhen
     numberOfGames++;
 
-    return deal();
+    return deal(msg.sender);
+  }
+
+  function deal(address _address) internal returns (string) {
+    clearCards(_address);
+    games[_address]._cardTotal = 0;
+
+    // Player card 1:
+    games.[_address]._currentHand[0] = RNG();
   }
 
   function withdraw() onlyInitialisedPlayer isPlayer outRound public {
@@ -126,15 +135,6 @@ contract BlackJack {
     }
   }
 
-  function countCards() public onlyInitialisedPlayer returns (uint) {
-    Card cards[] = games[msg.sender]._currentHand;
-    uint amount = 0;
-    for (uint i = 0; i < cards.length; i++) {
-      amount = amount + cards[i];
-    }
-    return amount;
-  }
-
   function getNumberOfGames() public returns (uint){
     return numberOfGames;
   }
@@ -143,5 +143,11 @@ contract BlackJack {
   uint random = uint(keccak256(now, msg.sender, _nonce)) % 14;
   nonce++;
   return random;
+  }
+
+  function clearCards(address _address) private {
+    for(uint i = 0;i < games[_address]._currentHand.length; i++) {
+      games[_address]._currentHand[i] = 0;
+    }
   }
 }
