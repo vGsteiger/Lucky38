@@ -1,4 +1,4 @@
-pragma solidity 0.4.4;
+pragma solidity 0.4.26;
 
 //  Blackjack smart contract to be deployed on Rinkeby testnet
 //  Contributors:
@@ -16,13 +16,13 @@ contract BlackJack {
   // verschiedenen Spielern.
   struct Game {
     address _playerAddress;
-    uint256 _currentBalance;
-    uint256 _currentBet;
-    uint256 _randomNumber;
-    uint256 _cardTotal;
+    uint _currentBalance;
+    uint _currentBet;
+    uint _randomNumber;
+    uint _cardTotal;
     bool _turn;
     bool _init;
-    Cards _currentHand[22];
+    Cards[22] _currentHand;
   }
 
   struct Cards {
@@ -79,11 +79,9 @@ contract BlackJack {
   //TODO: deal, hit, stand, showTable
 
   // Contract bezahlen:
-  function payContract() outRound isPlayer public payable returns (string) {
+  function payContract() outRound public payable returns (string) {
     // Nur der Spieler darf sich selber Geld zuweisen
-    Game game = games[msg.sender];
-
-    require((game._currentBalance+msg.value) <= _ethLimit, "Too much invested.")
+    require((games[msg.sender]._currentBalance+msg.value) <= _ethLimit, "Too much invested.");
 
     setPlayer(msg.sender,msg.value);
 
@@ -103,7 +101,7 @@ contract BlackJack {
     // Runde starten
     games[msg.sender]._turn = true;
     // Anzahl Spiele erhöhen
-    numberOfGames++;
+    _numberOfGames++;
 
     return deal(msg.sender);
   }
@@ -113,7 +111,7 @@ contract BlackJack {
     games[_address]._cardTotal = 0;
 
     // Player card 1:
-    games.[_address]._currentHand[0] = RNG();
+    games[_address]._currentHand[0]._value = random();
   }
 
   function withdraw() onlyInitialisedPlayer isPlayer outRound public {
@@ -123,31 +121,28 @@ contract BlackJack {
   }
 
   // Funktion, welche beim Einzahlen ausgeführt wird.
-  function setPlayer(address _address, uint256 _investment) public {
-    var game = games[_address];
-    if(game._init == false) {
-      game._playerAddress = _address;
-      game._currentBalance = _investment;
-      game._currentBet = 0;
-      game._init = true;
+  function setPlayer(address _address, uint256 _investment) private {
+    if(games[_address]._init == false) {
+      games[_address]._playerAddress = _address;
+      games[_address]._currentBalance = _investment;
+      games[_address]._currentBet = 0;
+      games[_address]._init = true;
     } else {
-      game._currentBalance += _newBet;
+      games[_address]._currentBalance += _investment;
     }
   }
 
-  function getNumberOfGames() public returns (uint){
-    return numberOfGames;
+  function getNumberOfGames() public view returns (uint){
+      return _numberOfGames;
   }
 
   function random() private returns (uint) {
-  uint random = uint(keccak256(now, msg.sender, _nonce)) % 14;
-  nonce++;
-  return random;
+    return uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%251);
   }
 
   function clearCards(address _address) private {
     for(uint i = 0;i < games[_address]._currentHand.length; i++) {
-      games[_address]._currentHand[i] = 0;
+      games[_address]._currentHand[i]._value = 0;
     }
   }
 }
