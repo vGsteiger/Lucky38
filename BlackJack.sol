@@ -32,6 +32,7 @@ contract BlackJack {
   uint private _numberOfGames;
   uint private _nonce;
   uint private _ethLimit = 1500000 wei;
+  address private _owner;
 
   // So speichern wir am einfachsten die verschiedenen Spieler:
   mapping(address => Game) games;
@@ -44,6 +45,7 @@ contract BlackJack {
    constructor() public {
        _nonce = 1;
        _numberOfGames = 0;
+       _owner = msg.sender;
    }
 
   // MODIFIERS START
@@ -79,11 +81,10 @@ contract BlackJack {
   //TODO: deal, hit, stand, showTable
 
   // Contract bezahlen:
-  function payContract(uint deposit) outRound public payable {
-    // Nur der Spieler darf sich selber Geld zuweisen
-    require((games[msg.sender]._currentBalance+deposit) <= _ethLimit, "Too much invested.");
+  function payContract() outRound public payable {
+    require((games[msg.sender]._currentBalance+msg.value) <= _ethLimit, "Too much invested.");
 
-    setPlayer(msg.sender,deposit);
+    setPlayer(msg.sender,msg.value);
 
   }
 
