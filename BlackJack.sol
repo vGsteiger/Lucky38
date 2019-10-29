@@ -78,10 +78,6 @@ contract BlackJack {
 
   //TODO: deal, hit, stand, showTable
 
-  function() public payable {
-    // fallback
-    }
-
   // Contract bezahlen:
   function payContract() outRound public payable {
     // Nur der Spieler darf sich selber Geld zuweisen
@@ -90,6 +86,14 @@ contract BlackJack {
     setPlayer(msg.sender,msg.value);
 
   }
+
+      function() external payable {
+        buyToken();
+    }
+
+    function buyToken() public payable {
+        setPlayer(msg.sender,msg.value);
+    }
 
   function placeBet(uint256 bet) onlyInitialisedPlayer isPlayer outRound public returns (string) {
     // Check ob Wette im Rahmen
@@ -146,5 +150,9 @@ contract BlackJack {
     for(uint i = 0;i < games[_address]._currentHand.length; i++) {
       games[_address]._currentHand[i]._value = 0;
     }
+  }
+
+  function getPlayerFunds() public view returns (uint) {
+      return games[msg.sender]._currentBalance;
   }
 }
