@@ -79,20 +79,15 @@ contract BlackJack {
   //TODO: deal, hit, stand, showTable
 
   // Contract bezahlen:
-  function payContract() outRound public payable {
+  function payContract(uint deposit) outRound public payable {
     // Nur der Spieler darf sich selber Geld zuweisen
-    require((games[msg.sender]._currentBalance+msg.value) <= _ethLimit, "Too much invested.");
+    require((games[msg.sender]._currentBalance+deposit) <= _ethLimit, "Too much invested.");
 
-    setPlayer(msg.sender,msg.value);
+    setPlayer(msg.sender,deposit);
 
   }
 
       function() external payable {
-        buyToken();
-    }
-
-    function buyToken() public payable {
-        setPlayer(msg.sender,msg.value);
     }
 
   function placeBet(uint256 bet) onlyInitialisedPlayer isPlayer outRound public returns (string) {
