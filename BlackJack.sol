@@ -27,6 +27,7 @@ contract BlackJack {
 
   struct Cards {
     uint256 _value;
+    string _name;
   }
 
   uint private _numberOfGames;
@@ -114,6 +115,9 @@ contract BlackJack {
 
     // Player card 1:
     games[_address]._currentHand[0]._value = random();
+    if (games[_address]._currentHand[0]._value == 1) {
+      games[_address]._currentHand[0]._value = 11;
+    }
   }
 
   function withdraw() onlyInitialisedPlayer isPlayer outRound public {
@@ -139,7 +143,15 @@ contract BlackJack {
   }
 
   function random() private returns (uint) {
-    return uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%251);
+    _rn = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%251);
+    //J, Q, K => 10
+        if(_rn > 10)
+            _rn = 10;
+
+        if(_nonce > 600000)
+            _nonce = _rn;
+
+      return _rn;
   }
 
   function clearCards(address _address) private {
@@ -150,5 +162,11 @@ contract BlackJack {
 
   function getPlayerFunds() public view returns (uint) {
       return games[msg.sender]._currentBalance;
+  }
+
+  function printPlayerHand() private returns (string) {
+    for(uint i = 0; i < games[msg.sender]._currentHand.length; i++) {
+      require(games[msg.sender]._currentHand[i]._value == 0, games[msg.sender]._currentHand[i]._value)
+    }
   }
 }
