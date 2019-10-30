@@ -23,6 +23,7 @@ contract BlackJack {
     bool _turn;
     bool _init;
     Cards[22] _currentHand;
+    Cards[22] _dealerHand;
   }
 
   struct Cards {
@@ -34,6 +35,7 @@ contract BlackJack {
   uint private _nonce;
   uint private _ethLimit = 1500000 wei;
   address private _owner;
+  uint private _fees;
 
   // So speichern wir am einfachsten die verschiedenen Spieler:
   mapping(address => Game) games;
@@ -84,8 +86,10 @@ contract BlackJack {
   // Contract bezahlen:
   function payContract() outRound public payable {
     require((games[msg.sender]._currentBalance+msg.value) <= _ethLimit, "Too much invested.");
-
-    setPlayer(msg.sender,msg.value);
+    require(msg.value > 49, "Not enough invested.");
+    uint value = msg.value;
+    _fees += 5;
+    setPlayer(msg.sender,value-5);
 
   }
 
@@ -109,20 +113,24 @@ contract BlackJack {
     return deal(msg.sender);
   }
 
-  function deal(address _address) internal returns (string) {
+  function deal(address _address) public returns (string) {
     clearCards(_address);
     games[_address]._cardTotal = 0;
     _numberOfGames++;
 
     // Player card 1:
-    (games[_address]._currentHand[0]._value,games[_address]._currentHand[0]._name) = random();
+    (games[_address]._currentHand[0]._value,games[_address]._currentHand[0]._name) = randomCard();
 
     if (games[_address]._currentHand[0]._value == 1) {
         games[_address]._currentHand[0]._value = 11;
     }
 
     // Player card 2:
-  }
+    (games[_address]._currentHand[1]._value,games[_address]._currentHand[1]._name) = randomCard();
+
+    // Dealer card 1:
+    (games[_address]._dealerHand[0]._value,games[_address]._dealerHand[0]._name) = randomCard();
+    }
 
   function withdraw() onlyInitialisedPlayer isPlayer outRound public {
     uint256 balance = games[msg.sender]._currentBalance;
@@ -146,7 +154,7 @@ contract BlackJack {
       return _numberOfGames;
   }
 
-  function random() private returns (uint, string) {
+  function randomCard() private returns (uint, string) {
     uint value = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%14);
     if (value == 1) {
         return (value, 'Ace');
@@ -175,14 +183,15 @@ contract BlackJack {
     } else if (value == 13) {
         return (10, 'King');
     }
-    if (_nonce > value) {
-        _nonce = (value % 3) -1;
+    if (_nonce > 60000) {
+        _nonce = value;
     }
   }
 
   function clearCards(address _address) private {
     for(uint i = 0;i < games[_address]._currentHand.length; i++) {
       games[_address]._currentHand[i]._value = 0;
+      games[_address]._dealerHand[i]._value = 0;
     }
   }
 
@@ -190,4 +199,10 @@ contract BlackJack {
       return games[msg.sender]._currentBalance;
   }
 
+  function getCardName(uint i) public view returns (string) {
+      return games[msg.sender]._currentHand[i+1]._name;
+  }
+  function getCurrentBet() public view returns (uint) {
+      return games[msg.sender]._currentBet;
+  }
 }
