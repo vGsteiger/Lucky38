@@ -112,12 +112,16 @@ contract BlackJack {
   function deal(address _address) internal returns (string) {
     clearCards(_address);
     games[_address]._cardTotal = 0;
+    _numberOfGames++;
 
     // Player card 1:
-    games[_address]._currentHand[0]._value = random();
+    (games[_address]._currentHand[0]._value,games[_address]._currentHand[0]._name) = random();
+
     if (games[_address]._currentHand[0]._value == 1) {
-      games[_address]._currentHand[0]._value = 11;
+        games[_address]._currentHand[0]._value = 11;
     }
+
+    // Player card 2:
   }
 
   function withdraw() onlyInitialisedPlayer isPlayer outRound public {
@@ -142,16 +146,38 @@ contract BlackJack {
       return _numberOfGames;
   }
 
-  function random() private returns (uint) {
-    _rn = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%251);
-    //J, Q, K => 10
-        if(_rn > 10)
-            _rn = 10;
-
-        if(_nonce > 600000)
-            _nonce = _rn;
-
-      return _rn;
+  function random() private returns (uint, string) {
+    uint value = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%14);
+    if (value == 1) {
+        return (value, 'Ace');
+    } else if (value == 2) {
+        return (value, 'Two');
+    } else if (value == 3) {
+        return (value, 'Three');
+    } else if (value == 4) {
+        return (value, 'Four');
+    } else if (value == 5) {
+        return (value, 'Five');
+    } else if (value == 6) {
+        return (value, 'Six');
+    } else if (value == 7) {
+        return (value, 'Seven');
+    } else if (value == 8) {
+        return (value, 'Eight');
+    } else if (value == 9) {
+        return (value, 'Nine');
+    } else if (value == 10) {
+        return (value, 'Ten');
+    } else if (value == 11) {
+        return (10, 'Jack');
+    } else if (value == 12) {
+        return (10, 'Queen');
+    } else if (value == 13) {
+        return (10, 'King');
+    }
+    if (_nonce > value) {
+        _nonce = (value % 3) -1;
+    }
   }
 
   function clearCards(address _address) private {
@@ -164,9 +190,4 @@ contract BlackJack {
       return games[msg.sender]._currentBalance;
   }
 
-  function printPlayerHand() private returns (string) {
-    for(uint i = 0; i < games[msg.sender]._currentHand.length; i++) {
-      require(games[msg.sender]._currentHand[i]._value == 0, games[msg.sender]._currentHand[i]._value)
-    }
-  }
 }
