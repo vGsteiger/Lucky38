@@ -4,16 +4,14 @@ pragma solidity 0.4.26;
 //  Contributors:
 //    Tim Keller and Viktor Gsteiger
 
-// Current version: 22.10.2019
+// Current version: 30.10.2019
 // TODOs for V1 due 04.11.2019
 
 contract BlackJack {
 
   // DECLARATION START
 
-  // Habe mich dafür entschieden, weil wir so ganz einfach ein Spiel pro
-  // Spieler haben können, sonst haben wir ja bald ein Problem mit
-  // verschiedenen Spielern.
+  // Decided for a game struct to save the players
   struct Game {
     address _playerAddress;
     uint _currentBalance;
@@ -22,22 +20,24 @@ contract BlackJack {
     uint _cardTotal;
     bool _turn;
     bool _init;
+    bool _freshlyDealt;
     Cards[22] _currentHand;
     Cards[22] _dealerHand;
   }
 
+  // Struct to save a card
   struct Cards {
     uint256 _value;
     string _name;
   }
 
-  uint private _numberOfGames;
-  uint private _nonce;
-  uint private _ethLimit = 1500000 wei;
-  address private _owner;
-  uint private _fees;
+  uint private _numberOfGames; // Not important
+  uint private _nonce; // To make random more unpredictable
+  uint private _ethLimit = 1500000 wei; // Max amount a player can invest
+  address private _owner; // Owner of the contract
+  uint private _fees; // Casino funds (if over 100, owner can withdraw funds)
 
-  // So speichern wir am einfachsten die verschiedenen Spieler:
+  // Easiest way to save the players
   mapping(address => Game) games;
 
   // DECLARATION END
@@ -45,6 +45,7 @@ contract BlackJack {
   // ----------
 
   // CONSTRUCTOR
+  // Used for contract deployment to determine the owner
    constructor() public {
        _nonce = 1;
        _numberOfGames = 0;
@@ -61,17 +62,25 @@ contract BlackJack {
     _;
   }
 
+  // Only owner can use these functions
+  modifier onlyOwner() {
+      require(msg.sender == _owner, "You are not the owner.");
+      _;
+  }
+
   // To be able to only use a function after or before a game
   modifier outRound() {
     require(games[msg.sender]._turn == false, "Game running.");
     _;
   }
 
+  // Only an initialised player can use those functions
   modifier onlyInitialisedPlayer() {
     require(games[msg.sender]._init == true, "You are not logged in yet.");
     _;
   }
 
+  // Not sure if needed?
   modifier isPlayer() {
     require(games[msg.sender]._playerAddress == msg.sender, "You are not the right player.");
     _;
@@ -81,79 +90,102 @@ contract BlackJack {
 
   // Functions
 
-  //TODO: deal, hit, stand, showTable
+  //TODO: hit, stand, determine winner (partially done)
 
-  // Contract bezahlen:
+  // Invest money into the contract, as long as it's not more than limit
   function payContract() outRound public payable {
     require((games[msg.sender]._currentBalance+msg.value) <= _ethLimit, "Too much invested.");
     require(msg.value > 49, "Not enough invested.");
     uint value = msg.value;
-    _fees += 5;
-    setPlayer(msg.sender,value-5);
-
+    _fees += 5; // To pay the casino fees
+    if (games[msg.sender]._init == false) {
+      setPlayer(msg.sender,value-5); // Initialise the player
+    } else {
+      games[_address]._currentBalance += (msg.value-5); // If player already initialised, update their balance
+    }
   }
 
       function() external payable {
+          // Fallback function, unused!
     }
 
-  function placeBet(uint256 bet) onlyInitialisedPlayer isPlayer outRound public returns (string) {
-    // Check ob Wette im Rahmen
-    require(bet >= 1 wei && bet <= 10000 wei, "Bet limit is 1 wei - 10000 wei.");
-    // Check ob Wette nicht zu hoch
-    require(games[msg.sender]._currentBalance >= bet, "You can not afford to play this expensive.");
-    // Balance des Spielers aktualisieren
-    games[msg.sender]._currentBalance -= bet;
-    // Aktuelle Wette aktualisieren
-    games[msg.sender]._currentBet += bet;
-    // Runde starten
-    games[msg.sender]._turn = true;
-    // Anzahl Spiele erhöhen
-    _numberOfGames++;
+    // Function to initialise a new player
+    function setPlayer(address _address, uint256 _investment) private {
+        games[_address]._playerAddress = _address; // Address to identify the player
+        games[_address]._currentBalance = _investment; // Current balance on the contract
+        games[_address]._currentBet = 0; // Bet is zero, because new player
+        games[_address]._init = true; // Player is initialised and can now access more functions
+        clearCards();
+      }
+    }
 
-    return deal(msg.sender);
+    // One can make the bet higher before the game, but not change it if in a game
+  function placeBet(uint256 bet) onlyInitialisedPlayer isPlayer outRound public returns (string) {
+    // Check whether bet not too small or too big
+    require(bet >= 2 wei && bet <= 500 wei, "Bet limit is 1 wei - 10000 wei.");
+    // Check if bet not larger than player funds
+    require(games[msg.sender]._currentBalance >= bet, "You can not afford to play this expensive.");
+    games[msg.sender]._currentBalance -= bet; // Adjust player funds
+    games[msg.sender]._currentBet += bet; // Adjust current bet
   }
 
-  function deal(address _address) public returns (string) {
-    clearCards(_address);
-    games[_address]._cardTotal = 0;
+  function deal() public returns (string) {
+    // Set the stage for a game
+    games[msg.sender]._turn = true;
+    clearCards(msg.sender);
+    games[msg.sender]._cardTotal = 0;
     _numberOfGames++;
 
     // Player card 1:
-    (games[_address]._currentHand[0]._value,games[_address]._currentHand[0]._name) = randomCard();
+    (games[msg.sender]._currentHand[0]._value,games[msg.sender]._currentHand[0]._name) = randomCard();
 
-    if (games[_address]._currentHand[0]._value == 1) {
-        games[_address]._currentHand[0]._value = 11;
+    // Internally handle Ace, player does only know he has an Ace but does not need to know more
+    if (games[msg.sender]._currentHand[0]._value == 1) {
+        games[msg.sender]._currentHand[0]._value = 11;
     }
 
     // Player card 2:
-    (games[_address]._currentHand[1]._value,games[_address]._currentHand[1]._name) = randomCard();
+    (games[msg.sender]._currentHand[1]._value,games[msg.sender]._currentHand[1]._name) = randomCard();
+
+    // Internally handle Ace, player does only know he has an Ace but does not need to know more
+    if (getCurrentCardValue() + 11 < 22 && games[msg.sender]._currentHand[1]._value == 1) {
+        games[msg.sender]._currentHand[1]._value = 11;
+    }
 
     // Dealer card 1:
-    (games[_address]._dealerHand[0]._value,games[_address]._dealerHand[0]._name) = randomCard();
+    (games[msg.sender]._dealerHand[0]._value,games[msg.sender]._dealerHand[0]._name) = randomCard();
+    // Handle dealer Ace
+    if (games[msg.sender]._dealerHand[0]._value == 1) {
+        games[msg.sender]._dealerHand[0]._value = 11;
     }
 
-  function withdraw() onlyInitialisedPlayer isPlayer outRound public {
-    uint256 balance = games[msg.sender]._currentBalance;
-    games[msg.sender]._currentBalance = 0;
-    address(msg.sender).transfer(balance);
-  }
-
-  // Funktion, welche beim Einzahlen ausgeführt wird.
-  function setPlayer(address _address, uint256 _investment) private {
-    if(games[_address]._init == false) {
-      games[_address]._playerAddress = _address;
-      games[_address]._currentBalance = _investment;
-      games[_address]._currentBet = 0;
-      games[_address]._init = true;
-    } else {
-      games[_address]._currentBalance += _investment;
+    // Dealer card 2:
+    (games[msg.sender]._dealerHand[1]._value,games[msg.sender]._dealerHand[1]._name) = randomCard();
+    // Internally handle possible Ace 2 of dealer, player does only know he has an Ace but does not need to know more
+    if (getCurrentCardValue() + 11 < 22 && games[msg.sender]._dealerHand[1]._value == 1) {
+        games[msg.sender]._dealerHand[1]._value = 11;
     }
-  }
 
-  function getNumberOfGames() public view returns (uint){
-      return _numberOfGames;
-  }
+    // Handle if draw
+    if(getCurrentCardValue() == 21 && getCurrentDealerCardValue() == 21) {
+        games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
+        games[msg.sender]._currentBet = 0;
+        games[msg.sender]._turn = false;
+        return "Draw, you get your money back.";
+    }
 
+    // Handle if won
+    if(getCurrentCardValue() == 21) {
+        _fees -= 5;
+        games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+        games[msg.sender]._currentBet = 0;
+        games[msg.sender]._turn = false;
+        return "BlackJack! You won!";
+    }
+    return "Your turn, how do you want to proceed?";
+    }
+
+    // Function to handle Card creation with name and value
   function randomCard() private returns (uint, string) {
     uint value = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%14);
     if (value == 1) {
@@ -183,26 +215,82 @@ contract BlackJack {
     } else if (value == 13) {
         return (10, 'King');
     }
+    // To keep random more random and unpredictable
     if (_nonce > 60000) {
         _nonce = value;
     }
   }
 
-  function clearCards(address _address) private {
-    for(uint i = 0;i < games[_address]._currentHand.length; i++) {
-      games[_address]._currentHand[i]._value = 0;
-      games[_address]._dealerHand[i]._value = 0;
+  // clear cards for a new game/set them all to zero
+  function clearCards() private {
+    for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
+      games[msg.sender]._currentHand[i]._value = 0;
+      games[msg.sender]._dealerHand[i]._value = 0;
     }
   }
 
+  // Calculate the player card values for win evaluations
+  function getCurrentCardValue() inRound private view returns (uint) {
+      uint value = 0;
+      for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
+          value += games[msg.sender]._currentHand[i]._value;
+      }
+      return value;
+  }
+
+  // Calcuate the dealer card values for win evaluations
+  function getCurrentDealerCardValue() private view returns (uint) {
+      uint value = 0;
+      for(uint i = 0;i < games[msg.sender]._dealerHand.length; i++) {
+          value += games[msg.sender]._dealerHand[i]._value;
+      }
+      return value;
+  }
+
+  // Function to change the Aces value
+  function changeAceValue(uint i) inRound public returns (string) {
+    require(games[msg.sender]._currentHand[i-1]._value == 1 || games[msg.sender]._currentHand[i-1]._value == 11, "Not an Ace!");
+    if(games[msg.sender]._currentHand[i-1]._value == 1) {
+      games[msg.sender]._currentHand[i-1]._value = 11;
+      return "The value of your ace is now 11."
+    } else {
+      games[msg.sender]._currentHand[i-1]._value = 1;
+      return "The value of your ace is now 1."
+    }
+  }
+
+  // public functions to get information relevant to the game
+  function getPlayerCardName(uint i) inRound public view returns (string) {
+            require(i > 0 && i < 23, "Wrong number!");
+      return games[msg.sender]._currentHand[i-1]._name;
+  }
+  function getDealerCardName(uint i) inRound public view returns (string) {
+      require(i > 0 && i < 23, "Wrong number!");
+      if(games[msg.sender]._freshlyDealt == false) {
+          return games[msg.sender]._dealerHand[i-1]._name;
+      }
+      require (i == 1, "You are not yet allowed to see the other dealers cards");
+      return games[msg.sender]._dealerHand[0]._name;
+  }
+  // Get the current general funds of the player
   function getPlayerFunds() public view returns (uint) {
       return games[msg.sender]._currentBalance;
   }
-
-  function getCardName(uint i) public view returns (string) {
-      return games[msg.sender]._currentHand[i+1]._name;
-  }
   function getCurrentBet() public view returns (uint) {
       return games[msg.sender]._currentBet;
+  }
+    function getNumberOfGames() public view returns (uint){
+      return _numberOfGames;
+  }
+
+  // Withdraw function for the owner/players
+  function clearCasino() public onlyOwner {
+      if (_fees > 100) {
+          _owner.transfer(_fees-100);
+      }
+  }
+    function withdraw() onlyInitialisedPlayer isPlayer outRound public {
+    address(msg.sender).transfer(games[msg.sender]._currentBalance);
+    games[msg.sender]._currentBalance = 0;
   }
 }
