@@ -101,7 +101,7 @@ contract BlackJack {
     if (games[msg.sender]._init == false) {
       setPlayer(msg.sender,value-5); // Initialise the player
     } else {
-      games[_address]._currentBalance += (msg.value-5); // If player already initialised, update their balance
+      games[msg.sender]._currentBalance += (msg.value-5); // If player already initialised, update their balance
     }
   }
 
@@ -117,7 +117,6 @@ contract BlackJack {
         games[_address]._init = true; // Player is initialised and can now access more functions
         clearCards();
       }
-    }
 
     // One can make the bet higher before the game, but not change it if in a game
   function placeBet(uint256 bet) onlyInitialisedPlayer isPlayer outRound public returns (string) {
@@ -132,7 +131,7 @@ contract BlackJack {
   function deal() public returns (string) {
     // Set the stage for a game
     games[msg.sender]._turn = true;
-    clearCards(msg.sender);
+    clearCards();
     games[msg.sender]._cardTotal = 0;
     _numberOfGames++;
 
@@ -252,10 +251,10 @@ contract BlackJack {
     require(games[msg.sender]._currentHand[i-1]._value == 1 || games[msg.sender]._currentHand[i-1]._value == 11, "Not an Ace!");
     if(games[msg.sender]._currentHand[i-1]._value == 1) {
       games[msg.sender]._currentHand[i-1]._value = 11;
-      return "The value of your ace is now 11."
+      return "The value of your ace is now 11.";
     } else {
       games[msg.sender]._currentHand[i-1]._value = 1;
-      return "The value of your ace is now 1."
+      return "The value of your ace is now 1.";
     }
   }
 
