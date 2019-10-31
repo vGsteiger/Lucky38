@@ -21,6 +21,7 @@ contract BlackJack {
     bool _turn;
     bool _init;
     bool _freshlyDealt;
+    bool _hasAce;
     Cards[22] _currentHand;
     Cards[22] _dealerHand;
   }
@@ -86,11 +87,16 @@ contract BlackJack {
     _;
   }
 
+  modifier madeBet() {
+      require(games[msg.sender]._currentBet > 0, "You have to make a bet to play.");
+      _;
+  }
+
   // MODIFIERS END
 
   // Functions
 
-  //TODO: hit, stand, determine winner (partially done)
+  //TODO: stand, determine winner (partially done)
 
   // Invest money into the contract, as long as it's not more than limit
   function payContract() outRound public payable {
@@ -128,7 +134,7 @@ contract BlackJack {
     games[msg.sender]._currentBet += bet; // Adjust current bet
   }
 
-  function deal() public returns (string) {
+  function deal() onlyInitialisedPlayer outRound madeBet public returns (string) {
     // Set the stage for a game
     games[msg.sender]._turn = true;
     clearCards();
@@ -181,13 +187,123 @@ contract BlackJack {
         games[msg.sender]._turn = false;
         return "BlackJack! You won!";
     }
-    return "Your turn, how do you want to proceed?";
+    return "Your turn, how do you want to proceed? You can either hit another card or stand.";
+    }
+
+    function hit() inRound  onlyInitialisedPlayer public returns (string) {
+        uint currentCard = 0;
+        while(games[msg.sender]._currentHand[currentCard]._value != 0) {
+            currentCard++;
+        }
+        (games[msg.sender]._currentHand[currentCard]._value,games[msg.sender]._currentHand[currentCard]._name) = randomCard();
+
+        if (games[msg.sender]._currentHand[currentCard]._value == 1 && getCurrentCardValue() + 11 < 22) {
+            games[msg.sender]._currentHand[currentCard]._value = 11;
+        }
+
+        if (getCurrentCardValue() == 21 && getCurrentDealerCardValue() == 21) {
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "Draw, you get your money back.";
+        }
+
+        if (getCurrentCardValue() == 21) {
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "BlackJack! You won!";
+        }
+
+        if (getCurrentCardValue() > 21 && games[msg.sender]._hasAce == false) {
+            _fees += games[msg.sender]._currentBet;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "You lost. You will get nothing back.";
+        }
+
+        if (getCurrentCardValue() > 21) {
+            currentCard = 0;
+            while (games[msg.sender]._currentHand[currentCard]._value != 0) {
+                if(games[msg.sender]._currentHand[currentCard]._value == 11) {
+                    if(getCurrentCardValue() - 10 < 22) {
+                        games[msg.sender]._currentHand[currentCard]._value = 1;
+                        if (getCurrentCardValue() == 21 && getCurrentDealerCardValue() == 21) {
+                            games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
+                            games[msg.sender]._currentBet = 0;
+                            games[msg.sender]._turn = false;
+                            return "Draw, you get your money back.";
+                        }
+
+                        if (getCurrentCardValue() == 21) {
+                            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+                            games[msg.sender]._currentBet = 0;
+                            games[msg.sender]._turn = false;
+                            return "BlackJack! You won!";
+                        }
+                    }
+                }
+            }
+            if(getCurrentCardValue() > 21) {
+                _fees += games[msg.sender]._currentBet;
+                games[msg.sender]._currentBet = 0;
+                games[msg.sender]._turn = false;
+                return "You lost. You will get nothing back.";
+            }
+        }
+
+        return "Got another card, your choice now, hit or stand?";
+    }
+
+    function stand() inRound  onlyInitialisedPlayer public returns (string) {
+        games[msg.sender]._freshlyDealt = false;
+
+        if (getCurrentDealerCardValue() == 21) {
+            _fees += games[msg.sender]._currentBet;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "The dealer had BlackJack. You lost. You will get nothing back.";
+        }
+        uint counter = 2;
+        do {
+            (games[msg.sender]._dealerHand[counter++]._value,games[msg.sender]._dealerHand[counter++]._name) = randomCard();
+            if(games[msg.sender]._dealerHand[counter++]._value == 1 && getCurrentDealerCardValue() + 10 < 18) {
+                games[msg.sender]._dealerHand[counter++]._value = 11;
+            }
+
+        } while (getCurrentDealerCardValue() < 17);
+
+        if (getCurrentDealerCardValue() > 21) {
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "You won! The dealer had more than 21";
+        }
+        if(getCurrentDealerCardValue() == getCurrentCardValue()) {
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "Draw, you get your money back.";
+        }
+        if(getCurrentDealerCardValue() < getCurrentCardValue()) {
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "You won! You had more than the dealer";
+        }
+        if(getCurrentCardValue() < getCurrentDealerCardValue()) {
+            _fees += games[msg.sender]._currentBet;
+            games[msg.sender]._currentBet = 0;
+            games[msg.sender]._turn = false;
+            return "You lost. You had less than the dealer.";
+            }
     }
 
     // Function to handle Card creation with name and value
   function randomCard() private returns (uint, string) {
     uint value = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%14);
     if (value == 1) {
+        games[msg.sender]._hasAce == true;
         return (value, 'Ace');
     } else if (value == 2) {
         return (value, 'Two');
@@ -223,6 +339,7 @@ contract BlackJack {
   // clear cards for a new game/set them all to zero
   function clearCards() private {
     for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
+    games[msg.sender]._hasAce = false;
       games[msg.sender]._currentHand[i]._value = 0;
       games[msg.sender]._dealerHand[i]._value = 0;
     }
@@ -247,16 +364,16 @@ contract BlackJack {
   }
 
   // Function to change the Aces value
-  function changeAceValue(uint i) inRound public returns (string) {
-    require(games[msg.sender]._currentHand[i-1]._value == 1 || games[msg.sender]._currentHand[i-1]._value == 11, "Not an Ace!");
-    if(games[msg.sender]._currentHand[i-1]._value == 1) {
-      games[msg.sender]._currentHand[i-1]._value = 11;
-      return "The value of your ace is now 11.";
-    } else {
-      games[msg.sender]._currentHand[i-1]._value = 1;
-      return "The value of your ace is now 1.";
-    }
-  }
+  //function changeAceValue(uint i) inRound public returns (string) {
+//    require(games[msg.sender]._currentHand[i-1]._value == 1 || games[msg.sender]._currentHand[i-1]._value == 11, "Not an Ace!");
+  //  if(games[msg.sender]._currentHand[i-1]._value == 1) {
+    //  games[msg.sender]._currentHand[i-1]._value = 11;
+     // return "The value of your ace is now 11.";
+  //  } else {
+  //    games[msg.sender]._currentHand[i-1]._value = 1;
+   //   return "The value of your ace is now 1.";
+  //  }
+ // }
 
   // public functions to get information relevant to the game
   function getPlayerCardName(uint i) inRound public view returns (string) {
