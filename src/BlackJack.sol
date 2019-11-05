@@ -4,8 +4,8 @@ pragma solidity 0.4.26;
 //  Contributors:
 //    Tim Keller and Viktor Gsteiger
 
-// Current version: 30.10.2019
-// TODOs for V1 due 04.11.2019
+// Current version: 05.11.2019
+// TODOs for V2 due 11.11.2019
 
 contract BlackJack {
 
@@ -99,8 +99,6 @@ contract BlackJack {
   // MODIFIERS END
 
   // Functions
-
-  //TODO: stand, determine winner (partially done)
 
   // Invest money into the contract, as long as it's not more than limit
   function payContract() outRound public payable {
@@ -227,6 +225,7 @@ contract BlackJack {
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             return "BlackJack! You won!";
+            insuranceToCasino();
         }
 
         // If player bust and no chance to change an ace to 1:
@@ -235,6 +234,7 @@ contract BlackJack {
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             return "You lost. You will get nothing back.";
+            insuranceToCasino();
         }
 
         // If bust but player has an ace:
@@ -263,6 +263,7 @@ contract BlackJack {
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
                             return "BlackJack! You won!";
+                            insuranceToCasino();
                         }
                     }
                 }
@@ -273,6 +274,7 @@ contract BlackJack {
                 games[msg.sender]._currentBet = 0;
                 games[msg.sender]._turn = false;
                 return "You lost. You will get nothing back.";
+                insuranceToCasino();
             }
         }
         // If not lost or won, new card or stand:
@@ -320,6 +322,7 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
+            insuranceToCasino();
             return "You won! The dealer had more than 21";
         }
 
@@ -328,6 +331,7 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
+            insuranceToCasino();
             return "Draw, you get your money back.";
         }
 
@@ -336,6 +340,7 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
+            insuranceToCasino();
             return "You won! You had more than the dealer";
         }
 
@@ -344,6 +349,7 @@ contract BlackJack {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
+            insuranceToCasino();
             return "You lost. You had less than the dealer.";
             }
     }
@@ -417,6 +423,8 @@ contract BlackJack {
             require(i > 0 && i < 23, "Wrong number!");
       return games[msg.sender]._currentHand[i-1]._name;
   }
+
+  // Get the cards of the dealer. It's only possible to get the dealers first card before standing.
   function getDealerCardName(uint i) inRound public view returns (string) {
       require(i > 0 && i < 23, "Wrong number!");
       if(games[msg.sender]._freshlyDealt == false) {
@@ -429,13 +437,18 @@ contract BlackJack {
   function getPlayerFunds() public view returns (uint) {
       return games[msg.sender]._currentBalance;
   }
+
+  // Get current bet
   function getCurrentBet() public view returns (uint) {
       return games[msg.sender]._currentBet;
   }
+
+  // Get current number of games
     function getNumberOfGames() public view returns (uint){
       return _numberOfGames;
   }
 
+    // Insure the game if dealers first card was an ace
     function insureGame() public inRound onlyInitialisedPlayer returns (string) {
       require(games[msg.sender]._deal, "You can only insure game after deal");
       require(games[msg.sender]._dealerHand[0]._value == 1 || games[msg.sender]._dealerHand[0]._value == 11, "Dealer does not have an ace.");
@@ -444,11 +457,21 @@ contract BlackJack {
       games[msg.sender]._currentBalance -= games[msg.sender]._insurance;
     }
 
+    // Function to cash out the insurance in case of loosing if player had insurance
     function cashOutInsurance() private {
-      require(games[msg.sender]._insured == true, "You do not have insurance");
+      if(games[msg.sender]._insured == true){
       games[msg.sender]._currentBalance += games[msg.sender]._insurance * 2;
       games[msg.sender]._insurance = 0;
       _fees -= games[msg.sender]._insurance;
+    }
+    }
+
+    // Function to withdraw insurance if player lost or won
+    function insuranceToCasino() private {
+      if(games[msg.sender]._insured == true) {
+      _fees += games[msg.sender]._insurance;
+      games[msg.sender]._insurance = 0;
+    }
     }
 
   // Withdraw function for the owner/players
@@ -457,6 +480,8 @@ contract BlackJack {
           _owner.transfer(_fees-100);
       }
   }
+
+  // Withdraw the players balance:
     function withdraw() onlyInitialisedPlayer isPlayer outRound public {
     address(msg.sender).transfer(games[msg.sender]._currentBalance);
     games[msg.sender]._currentBalance = 0;
