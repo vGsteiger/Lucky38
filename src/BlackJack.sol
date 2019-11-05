@@ -18,10 +18,14 @@ contract BlackJack {
     uint _currentBet;
     uint _randomNumber;
     uint _cardTotal;
+    uint _currentInsurance;
+    uint _insurance;
+    bool _deal;
     bool _turn;
     bool _init;
     bool _freshlyDealt;
     bool _hasAce;
+    bool _insured;
     Cards[22] _currentHand;
     Cards[22] _dealerHand;
   }
@@ -136,7 +140,9 @@ contract BlackJack {
 
   function deal() onlyInitialisedPlayer outRound madeBet public returns (string) {
     // Set the stage for a game
+    games[msg.sender]._insured == false;
     games[msg.sender]._turn = true;
+    games[msg.sender]._deal = true;
     clearCards();
     games[msg.sender]._cardTotal = 0;
     _numberOfGames++;
@@ -146,6 +152,7 @@ contract BlackJack {
 
     // Internally handle Ace, player does only know he has an Ace but does not need to know more
     if (games[msg.sender]._currentHand[0]._value == 1) {
+        games[msg.sender]._hasAce = true;
         games[msg.sender]._currentHand[0]._value = 11;
     }
 
@@ -167,20 +174,12 @@ contract BlackJack {
     // Dealer card 2:
     (games[msg.sender]._dealerHand[1]._value,games[msg.sender]._dealerHand[1]._name) = randomCard();
     // Internally handle possible Ace 2 of dealer, player does only know he has an Ace but does not need to know more
-    if (getCurrentCardValue() + 11 < 22 && games[msg.sender]._dealerHand[1]._value == 1) {
+    if (getCurrentDealerCardValue() + 11 < 22 && games[msg.sender]._dealerHand[1]._value == 1) {
         games[msg.sender]._dealerHand[1]._value = 11;
     }
 
-    // Handle if draw
-    if(getCurrentCardValue() == 21 && getCurrentDealerCardValue() == 21) {
-        games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
-        games[msg.sender]._currentBet = 0;
-        games[msg.sender]._turn = false;
-        return "Draw, you get your money back.";
-    }
-
     // Handle if won
-    if(getCurrentCardValue() == 21) {
+    if(getCurrentCardValue() == 21 && getCurrentDealerCardValue()!= 21) {
         _fees -= 5;
         games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
         games[msg.sender]._currentBet = 0;
@@ -192,22 +191,37 @@ contract BlackJack {
 
     function hit() inRound  onlyInitialisedPlayer public returns (string) {
         uint currentCard = 0;
+        games[msg.sender]._deal = false;
+
+        // Iterate until we are at the current cards:
         while(games[msg.sender]._currentHand[currentCard]._value != 0) {
             currentCard++;
         }
+
+        // Create new card:
         (games[msg.sender]._currentHand[currentCard]._value,games[msg.sender]._currentHand[currentCard]._name) = randomCard();
 
+        if (games[msg.sender]._currentHand[currentCard]._value == 1) {
+          games[msg.sender]._hasAce = true;
+        }
+
+        // Internally handle Ace (not relevant for player):
         if (games[msg.sender]._currentHand[currentCard]._value == 1 && getCurrentCardValue() + 11 < 22) {
             games[msg.sender]._currentHand[currentCard]._value = 11;
         }
 
+        // Both Blackjack:
         if (getCurrentCardValue() == 21 && getCurrentDealerCardValue() == 21) {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
+            if(games[msg.sender]._insured == true) {
+              cashOutInsurance();
+            }
             return "Draw, you get your money back.";
         }
 
+        // Player BlackJack:
         if (getCurrentCardValue() == 21) {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
             games[msg.sender]._currentBet = 0;
@@ -215,6 +229,7 @@ contract BlackJack {
             return "BlackJack! You won!";
         }
 
+        // If player bust and no chance to change an ace to 1:
         if (getCurrentCardValue() > 21 && games[msg.sender]._hasAce == false) {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
@@ -222,19 +237,27 @@ contract BlackJack {
             return "You lost. You will get nothing back.";
         }
 
+        // If bust but player has an ace:
         if (getCurrentCardValue() > 21) {
             currentCard = 0;
+            // Go through all cards:
             while (games[msg.sender]._currentHand[currentCard]._value != 0) {
+                // Check if currentCard is an Ace with value 11:
                 if(games[msg.sender]._currentHand[currentCard]._value == 11) {
+                    // Check if changing the Ace to 1 would change anything:
                     if(getCurrentCardValue() - 10 < 22) {
                         games[msg.sender]._currentHand[currentCard]._value = 1;
+                        // Check if changing Ace gave player a BlackJack and dealer has a BlackJack:
                         if (getCurrentCardValue() == 21 && getCurrentDealerCardValue() == 21) {
                             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
+                            if(games[msg.sender]._insured == true) {
+                              cashOutInsurance();
+                            }
                             return "Draw, you get your money back.";
                         }
-
+                        // Check if now has Blackjack to win:
                         if (getCurrentCardValue() == 21) {
                             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
                             games[msg.sender]._currentBet = 0;
@@ -244,6 +267,7 @@ contract BlackJack {
                     }
                 }
             }
+            // If changing all the Aces didn't help, player lost:
             if(getCurrentCardValue() > 21) {
                 _fees += games[msg.sender]._currentBet;
                 games[msg.sender]._currentBet = 0;
@@ -251,46 +275,71 @@ contract BlackJack {
                 return "You lost. You will get nothing back.";
             }
         }
-
+        // If not lost or won, new card or stand:
         return "Got another card, your choice now, hit or stand?";
     }
 
+    // Function for the player to take no more card. Now the dealer has to take cards
+    // as long as his cards value is below 17.
     function stand() inRound  onlyInitialisedPlayer public returns (string) {
         games[msg.sender]._freshlyDealt = false;
+        games[msg.sender]._deal = false;
 
+        if (getCurrentDealerCardValue() == 21 && getCurrentCardValue() == 21) {
+          games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
+          games[msg.sender]._currentBet = 0;
+          games[msg.sender]._turn = false;
+          if(games[msg.sender]._insured == true) {
+            cashOutInsurance();
+          }
+          return "Draw, you get your money back.";
+        }
+        // If the dealer got blackjack (player gets checked in hit/deal) he wins.
         if (getCurrentDealerCardValue() == 21) {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
+            if(games[msg.sender]._insured == true) {
+              cashOutInsurance();
+            }
             return "The dealer had BlackJack. You lost. You will get nothing back.";
         }
         uint counter = 2;
-        do {
+
+        // Dealer has to take cards until his cards have the value 17 or more
+        while (getCurrentDealerCardValue() < 17) {
             (games[msg.sender]._dealerHand[counter++]._value,games[msg.sender]._dealerHand[counter++]._name) = randomCard();
             if(games[msg.sender]._dealerHand[counter++]._value == 1 && getCurrentDealerCardValue() + 10 < 18) {
                 games[msg.sender]._dealerHand[counter++]._value = 11;
             }
 
-        } while (getCurrentDealerCardValue() < 17);
+        }
 
+        // Dealer busts (player gets checked after hit, it's not possible for the player to have more than 21 after deal)
         if (getCurrentDealerCardValue() > 21) {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             return "You won! The dealer had more than 21";
         }
+
+        // Draw
         if(getCurrentDealerCardValue() == getCurrentCardValue()) {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             return "Draw, you get your money back.";
         }
+
+        // Player won with more points
         if(getCurrentDealerCardValue() < getCurrentCardValue()) {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             return "You won! You had more than the dealer";
         }
+
+        // Dealer won with more points
         if(getCurrentCardValue() < getCurrentDealerCardValue()) {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
@@ -363,18 +412,6 @@ contract BlackJack {
       return value;
   }
 
-  // Function to change the Aces value
-  //function changeAceValue(uint i) inRound public returns (string) {
-//    require(games[msg.sender]._currentHand[i-1]._value == 1 || games[msg.sender]._currentHand[i-1]._value == 11, "Not an Ace!");
-  //  if(games[msg.sender]._currentHand[i-1]._value == 1) {
-    //  games[msg.sender]._currentHand[i-1]._value = 11;
-     // return "The value of your ace is now 11.";
-  //  } else {
-  //    games[msg.sender]._currentHand[i-1]._value = 1;
-   //   return "The value of your ace is now 1.";
-  //  }
- // }
-
   // public functions to get information relevant to the game
   function getPlayerCardName(uint i) inRound public view returns (string) {
             require(i > 0 && i < 23, "Wrong number!");
@@ -398,6 +435,21 @@ contract BlackJack {
     function getNumberOfGames() public view returns (uint){
       return _numberOfGames;
   }
+
+    function insureGame() public inRound onlyInitialisedPlayer returns (string) {
+      require(games[msg.sender]._deal, "You can only insure game after deal");
+      require(games[msg.sender]._dealerHand[0]._value == 1 || games[msg.sender]._dealerHand[0]._value == 11, "Dealer does not have an ace.");
+      games[msg.sender]._insured = true;
+      games[msg.sender]._insurance = games[msg.sender]._currentBet / 2;
+      games[msg.sender]._currentBalance -= games[msg.sender]._insurance;
+    }
+
+    function cashOutInsurance() private {
+      require(games[msg.sender]._insured == true, "You do not have insurance");
+      games[msg.sender]._currentBalance += games[msg.sender]._insurance * 2;
+      games[msg.sender]._insurance = 0;
+      _fees -= games[msg.sender]._insurance;
+    }
 
   // Withdraw function for the owner/players
   function clearCasino() public onlyOwner {
