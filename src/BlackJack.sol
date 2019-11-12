@@ -187,7 +187,8 @@ contract BlackJack {
     return "Your turn, how do you want to proceed? You can either hit another card or stand.";
     }
 
-    function hit() inRound  onlyInitialisedPlayer public returns (string) {
+    // Does not return String atm/something is buggy
+    function hit() inRound  onlyInitialisedPlayer public view returns (string) {
         uint currentCard = 0;
         games[msg.sender]._deal = false;
 
@@ -283,6 +284,7 @@ contract BlackJack {
 
     // Function for the player to take no more card. Now the dealer has to take cards
     // as long as his cards value is below 17.
+    // TODO: Does not return String!
     function stand() inRound  onlyInitialisedPlayer public returns (string) {
         games[msg.sender]._freshlyDealt = false;
         games[msg.sender]._deal = false;
@@ -425,6 +427,7 @@ contract BlackJack {
   }
 
   // Get the cards of the dealer. It's only possible to get the dealers first card before standing.
+  // TODO: I can watch dealers second card!
   function getDealerCardName(uint i) inRound public view returns (string) {
       require(i > 0 && i < 23, "Wrong number!");
       if(games[msg.sender]._freshlyDealt == false) {
@@ -475,7 +478,7 @@ contract BlackJack {
     }
 
   // Withdraw function for the owner/players
-  function clearCasino() public onlyOwner {
+  function clearCasino() onlyOwner public {
       if (_fees > 100) {
           _owner.transfer(_fees-100);
       }
