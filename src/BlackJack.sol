@@ -138,6 +138,7 @@ contract BlackJack {
 
   function deal() onlyInitialisedPlayer outRound madeBet public returns (string) {
     // Set the stage for a game
+    games[msg.sender]._freshlyDealt == true;
     games[msg.sender]._insured == false;
     games[msg.sender]._turn = true;
     games[msg.sender]._deal = true;
@@ -188,7 +189,7 @@ contract BlackJack {
     }
 
     // Does not return String atm/something is buggy
-    function hit() inRound  onlyInitialisedPlayer public view returns (string) {
+    function hit() inRound  onlyInitialisedPlayer public returns (string) {
         uint currentCard = 0;
         games[msg.sender]._deal = false;
 
@@ -427,14 +428,14 @@ contract BlackJack {
   }
 
   // Get the cards of the dealer. It's only possible to get the dealers first card before standing.
-  // TODO: I can watch dealers second card!
   function getDealerCardName(uint i) inRound public view returns (string) {
       require(i > 0 && i < 23, "Wrong number!");
       if(games[msg.sender]._freshlyDealt == false) {
           return games[msg.sender]._dealerHand[i-1]._name;
-      }
+      } else {
       require (i == 1, "You are not yet allowed to see the other dealers cards");
       return games[msg.sender]._dealerHand[0]._name;
+    }
   }
   // Get the current general funds of the player
   function getPlayerFunds() public view returns (uint) {
