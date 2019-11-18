@@ -23,7 +23,6 @@ contract BlackJack {
     bool _deal;
     bool _turn;
     bool _init;
-    bool _freshlyDealt;
     bool _hasAce;
     bool _insured;
     Cards[22] _currentHand;
@@ -113,7 +112,7 @@ contract BlackJack {
     }
   }
 
-      function() external payable {
+    function() external payable {
           // Fallback function, unused!
     }
 
@@ -138,7 +137,6 @@ contract BlackJack {
 
   function deal() onlyInitialisedPlayer outRound madeBet public returns (string) {
     // Set the stage for a game
-    games[msg.sender]._freshlyDealt == true;
     games[msg.sender]._insured == false;
     games[msg.sender]._turn = true;
     games[msg.sender]._deal = true;
@@ -287,7 +285,6 @@ contract BlackJack {
     // as long as his cards value is below 17.
     // TODO: Does not return String!
     function stand() inRound  onlyInitialisedPlayer public returns (string) {
-        games[msg.sender]._freshlyDealt = false;
         games[msg.sender]._deal = false;
 
         if (getCurrentDealerCardValue() == 21 && getCurrentCardValue() == 21) {
@@ -423,18 +420,17 @@ contract BlackJack {
 
   // public functions to get information relevant to the game
   function getPlayerCardName(uint i) inRound public view returns (string) {
-            require(i > 0 && i < 23, "Wrong number!");
-      return games[msg.sender]._currentHand[i-1]._name;
+    require(i >= 0 && i < 22, "Wrong number!");
+    return games[msg.sender]._currentHand[i]._name;
   }
 
   // Get the cards of the dealer. It's only possible to get the dealers first card before standing.
   function getDealerCardName(uint i) inRound public view returns (string) {
-      require(i > 0 && i < 23, "Wrong number!");
-      if(games[msg.sender]._freshlyDealt == false) {
-          return games[msg.sender]._dealerHand[i-1]._name;
+      require(i >= 0 && i < 22, "Wrong number!");
+      if(games[msg.sender]._deal == false) {
+              return games[msg.sender]._dealerHand[0]._name;
       } else {
-      require (i == 1, "You are not yet allowed to see the other dealers cards");
-      return games[msg.sender]._dealerHand[0]._name;
+        return games[msg.sender]._dealerHand[i]._name;
     }
   }
   // Get the current general funds of the player
@@ -483,6 +479,10 @@ contract BlackJack {
       if (_fees > 100) {
           _owner.transfer(_fees-100);
       }
+  }
+
+  function getFreshlyDealt() public view returns (bool){
+      return games[msg.sender]._deal;
   }
 
   // Withdraw the players balance:
