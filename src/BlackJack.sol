@@ -4,8 +4,8 @@ pragma solidity 0.4.26;
 //  Contributors:
 //    Tim Keller and Viktor Gsteiger
 
-// Current version: 05.11.2019
-// TODOs for V2 due 11.11.2019
+// Current version: 21.11.2019
+// TODOs for V3 due 25.11.2019
 
 contract BlackJack {
 
@@ -103,12 +103,12 @@ contract BlackJack {
   function payContract() outRound public payable {
     require((games[msg.sender]._currentBalance+msg.value) <= _ethLimit, "Too much invested.");
     require(msg.value > 49, "Not enough invested.");
-    uint value = msg.value;
-    _fees += 5; // To pay the casino fees
+    uint currentFee = ((msg.value/100)*5);
+    _fees += currentFee; // To pay the casino fees
     if (games[msg.sender]._init == false) {
-      setPlayer(msg.sender,value-5); // Initialise the player
+      setPlayer(msg.sender,msg.value-currentFee); // Initialise the player
     } else {
-      games[msg.sender]._currentBalance += (msg.value-5); // If player already initialised, update their balance
+      games[msg.sender]._currentBalance += (msg.value-currentFee); // If player already initialised, update their balance
     }
   }
 
@@ -177,8 +177,9 @@ contract BlackJack {
 
     // Handle if won
     if(getCurrentCardValue() == 21 && getCurrentDealerCardValue()!= 21) {
-        _fees -= 5;
-        games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+        uint currentWin = ((games[msg.sender]._currentBet/100)*5);
+        _fees -= currentWin;
+        games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
         games[msg.sender]._currentBet = 0;
         games[msg.sender]._turn = false;
         return "BlackJack! You won!";
@@ -221,7 +222,9 @@ contract BlackJack {
 
         // Player BlackJack:
         if (getCurrentCardValue() == 21) {
-            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+            uint currentWin = ((games[msg.sender]._currentBet/100)*5);
+            _fees -= currentWin;
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             return "BlackJack! You won!";
@@ -259,7 +262,9 @@ contract BlackJack {
                         }
                         // Check if now has Blackjack to win:
                         if (getCurrentCardValue() == 21) {
-                            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+                            uint currentWin = ((games[msg.sender]._currentBet/100)*5);
+                            _fees -= currentWin;
+                            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
                             return "BlackJack! You won!";
@@ -319,7 +324,9 @@ contract BlackJack {
 
         // Dealer busts (player gets checked after hit, it's not possible for the player to have more than 21 after deal)
         if (getCurrentDealerCardValue() > 21) {
-            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+            uint currentWin = ((games[msg.sender]._currentBet/100)*5);
+            _fees -= currentWin;
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
@@ -337,7 +344,9 @@ contract BlackJack {
 
         // Player won with more points
         if(getCurrentDealerCardValue() < getCurrentCardValue()) {
-            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + 5;
+            uint currentWin = ((games[msg.sender]._currentBet/100)*5);
+            _fees -= currentWin;
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
