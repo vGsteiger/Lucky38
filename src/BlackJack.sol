@@ -35,7 +35,7 @@ contract BlackJack {
     string _name;
   }
 
-  uint private _numberOfGames; // Not important
+  uint private _numberOfGames; // Number of played games on this contract
   uint private _nonce; // To make random more unpredictable
   uint private _ethLimit = 1500000 wei; // Max amount a player can invest
   address private _owner; // Owner of the contract
@@ -57,8 +57,6 @@ contract BlackJack {
    }
 
   // MODIFIERS START
-
-  // Modifiers
 
   // To be able to only use a function during a game
   modifier inRound() {
@@ -84,12 +82,13 @@ contract BlackJack {
     _;
   }
 
-  // Not sure if needed?
+  // Check if the message sende is a valid player
   modifier isPlayer() {
     require(games[msg.sender]._playerAddress == msg.sender, "You are not the right player.");
     _;
   }
 
+  // Check, if a player already made a bet
   modifier madeBet() {
       require(games[msg.sender]._currentBet > 0, "You have to make a bet to play.");
       _;
@@ -97,7 +96,9 @@ contract BlackJack {
 
   // MODIFIERS END
 
-  // Functions
+  // FUNCTIONS START
+
+  // PAYMENT FUNCTIONS START
 
   // Invest money into the contract, as long as it's not more than limit
   function payContract() outRound public payable {
@@ -116,14 +117,9 @@ contract BlackJack {
           // Fallback function, unused!
     }
 
-    // Function to initialise a new player
-    function setPlayer(address _address, uint256 _investment) private {
-        games[_address]._playerAddress = _address; // Address to identify the player
-        games[_address]._currentBalance = _investment; // Current balance on the contract
-        games[_address]._currentBet = 0; // Bet is zero, because new player
-        games[_address]._init = true; // Player is initialised and can now access more functions
-        clearCards();
-      }
+    // PAYMENT FUNCTIONS END
+
+    // BET FUNCTIONS START
 
     // One can make the bet higher before the game, but not change it if in a game
   function placeBet(uint256 bet) onlyInitialisedPlayer isPlayer outRound public returns (string) {
@@ -134,6 +130,10 @@ contract BlackJack {
     games[msg.sender]._currentBalance -= bet; // Adjust player funds
     games[msg.sender]._currentBet += bet; // Adjust current bet
   }
+
+  // BET FUNCTIONS END
+
+  // GAME FUNCTIONS START
 
   function deal() onlyInitialisedPlayer outRound madeBet public returns (string) {
     // Set the stage for a game
@@ -182,6 +182,7 @@ contract BlackJack {
         games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
         games[msg.sender]._currentBet = 0;
         games[msg.sender]._turn = false;
+        games[msg.sender]._deal = false;
         return "BlackJack! You won!";
     }
     return "Your turn, how do you want to proceed? You can either hit another card or stand.";
@@ -288,7 +289,6 @@ contract BlackJack {
 
     // Function for the player to take no more card. Now the dealer has to take cards
     // as long as his cards value is below 17.
-    // TODO: Does not return String!
     function stand() inRound  onlyInitialisedPlayer public returns (string) {
         games[msg.sender]._deal = false;
 
@@ -363,85 +363,56 @@ contract BlackJack {
             }
     }
 
-    // Function to handle Card creation with name and value
-  function randomCard() private returns (uint, string) {
-    uint value = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%14);
-    if (value == 1) {
-        games[msg.sender]._hasAce == true;
-        return (value, 'Ace');
-    } else if (value == 2) {
-        return (value, 'Two');
-    } else if (value == 3) {
-        return (value, 'Three');
-    } else if (value == 4) {
-        return (value, 'Four');
-    } else if (value == 5) {
-        return (value, 'Five');
-    } else if (value == 6) {
-        return (value, 'Six');
-    } else if (value == 7) {
-        return (value, 'Seven');
-    } else if (value == 8) {
-        return (value, 'Eight');
-    } else if (value == 9) {
-        return (value, 'Nine');
-    } else if (value == 10) {
-        return (value, 'Ten');
-    } else if (value == 11) {
-        return (10, 'Jack');
-    } else if (value == 12) {
-        return (10, 'Queen');
-    } else if (value == 13) {
-        return (10, 'King');
-    }
-    // To keep random more random and unpredictable
-    if (_nonce > 60000) {
-        _nonce = value;
-    }
+  // GAME FUNCTIONS END
+
+  // INSURANCE FUNCTION START
+
+  // Insure the game if dealers first card was an ace
+  function insureGame() public inRound onlyInitialisedPlayer returns (string) {
+    require(games[msg.sender]._deal, "You can only insure game after deal");
+    require(games[msg.sender]._dealerHand[0]._value == 1 || games[msg.sender]._dealerHand[0]._value == 11, "Dealer does not have an ace.");
+    games[msg.sender]._insured = true;
+    games[msg.sender]._insurance = games[msg.sender]._currentBet / 2;
+    games[msg.sender]._currentBalance -= games[msg.sender]._insurance;
   }
 
-  // clear cards for a new game/set them all to zero
-  function clearCards() private {
-    for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
-    games[msg.sender]._hasAce = false;
-      games[msg.sender]._currentHand[i]._value = 0;
-      games[msg.sender]._dealerHand[i]._value = 0;
-    }
-  }
+  // INSURANCE FUNCTION END
 
-  // Calculate the player card values for win evaluations
-  function getCurrentCardValue() inRound private view returns (uint) {
-      uint value = 0;
-      for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
-          value += games[msg.sender]._currentHand[i]._value;
+  // PUBLIC WITHDRAWAL FUNCTIONS START
+
+  // Withdraw function for the owner/players
+  function clearCasino() onlyOwner public {
+      if (_fees > 100) {
+          _owner.transfer(_fees-100);
       }
-      return value;
   }
 
-  // Calcuate the dealer card values for win evaluations
-  function getCurrentDealerCardValue() private view returns (uint) {
-      uint value = 0;
-      for(uint i = 0;i < games[msg.sender]._dealerHand.length; i++) {
-          value += games[msg.sender]._dealerHand[i]._value;
-      }
-      return value;
+  // Withdraw the players balance:
+    function withdraw() onlyInitialisedPlayer isPlayer outRound public {
+    address(msg.sender).transfer(games[msg.sender]._currentBalance);
+    games[msg.sender]._currentBalance = 0;
   }
+
+  // PUBLIC WITHDRAWAL FUNCTIONS END
+
+  // PUBLIC GETTERS START
 
   // public functions to get information relevant to the game
   function getPlayerCardName(uint i) inRound public view returns (string) {
     require(i >= 0 && i < 22, "Wrong number!");
-    return games[msg.sender]._currentHand[i]._name;
+    return games[msg.sender]._currentHand[i-1]._name;
   }
 
   // Get the cards of the dealer. It's only possible to get the dealers first card before standing.
   function getDealerCardName(uint i) inRound public view returns (string) {
       require(i >= 0 && i < 22, "Wrong number!");
-      if(games[msg.sender]._deal == false) {
+      if(games[msg.sender]._deal == true) {
               return games[msg.sender]._dealerHand[0]._name;
       } else {
-        return games[msg.sender]._dealerHand[i]._name;
+        return games[msg.sender]._dealerHand[i-1]._name;
     }
   }
+
   // Get the current general funds of the player
   function getPlayerFunds() public view returns (uint) {
       return games[msg.sender]._currentBalance;
@@ -457,46 +428,102 @@ contract BlackJack {
       return _numberOfGames;
   }
 
-    // Insure the game if dealers first card was an ace
-    function insureGame() public inRound onlyInitialisedPlayer returns (string) {
-      require(games[msg.sender]._deal, "You can only insure game after deal");
-      require(games[msg.sender]._dealerHand[0]._value == 1 || games[msg.sender]._dealerHand[0]._value == 11, "Dealer does not have an ace.");
-      games[msg.sender]._insured = true;
-      games[msg.sender]._insurance = games[msg.sender]._currentBet / 2;
-      games[msg.sender]._currentBalance -= games[msg.sender]._insurance;
-    }
+  // PUBLIC GETTERS END
 
-    // Function to cash out the insurance in case of loosing if player had insurance
-    function cashOutInsurance() private {
-      if(games[msg.sender]._insured == true){
-      games[msg.sender]._currentBalance += games[msg.sender]._insurance * 2;
-      games[msg.sender]._insurance = 0;
-      _fees -= games[msg.sender]._insurance;
-    }
-    }
+  // PRIVATE FUNCTIONS START
 
-    // Function to withdraw insurance if player lost or won
-    function insuranceToCasino() private {
-      if(games[msg.sender]._insured == true) {
-      _fees += games[msg.sender]._insurance;
-      games[msg.sender]._insurance = 0;
-    }
-    }
-
-  // Withdraw function for the owner/players
-  function clearCasino() onlyOwner public {
-      if (_fees > 100) {
-          _owner.transfer(_fees-100);
+  // Calcuate the dealer card values for win evaluations
+  function getCurrentDealerCardValue() private view returns (uint) {
+      uint value = 0;
+      for(uint i = 0;i < games[msg.sender]._dealerHand.length; i++) {
+          value += games[msg.sender]._dealerHand[i]._value;
       }
+      return value;
   }
 
-  function getFreshlyDealt() public view returns (bool){
-      return games[msg.sender]._deal;
+  // Calculate the player card values for win evaluations
+  function getCurrentCardValue() inRound private view returns (uint) {
+      uint value = 0;
+      for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
+          value += games[msg.sender]._currentHand[i]._value;
+      }
+      return value;
   }
 
-  // Withdraw the players balance:
-    function withdraw() onlyInitialisedPlayer isPlayer outRound public {
-    address(msg.sender).transfer(games[msg.sender]._currentBalance);
-    games[msg.sender]._currentBalance = 0;
+  // Function to cash out the insurance in case of loosing if player had insurance
+  function cashOutInsurance() private {
+    if(games[msg.sender]._insured == true){
+    games[msg.sender]._currentBalance += games[msg.sender]._insurance * 2;
+    games[msg.sender]._insurance = 0;
+    _fees -= games[msg.sender]._insurance;
+    }
   }
+
+  // Function to withdraw insurance if player lost or won
+  function insuranceToCasino() private {
+    if(games[msg.sender]._insured == true) {
+    _fees += games[msg.sender]._insurance;
+    games[msg.sender]._insurance = 0;
+    }
+  }
+
+  // clear cards for a new game/set them all to zero
+  function clearCards() private {
+    for(uint i = 0;i < games[msg.sender]._currentHand.length; i++) {
+    games[msg.sender]._hasAce = false;
+      games[msg.sender]._currentHand[i]._value = 0;
+      games[msg.sender]._dealerHand[i]._value = 0;
+    }
+  }
+
+  // Function to handle Card creation with name and value
+function randomCard() private returns (uint, string) {
+  uint value = uint(uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty,_nonce++)))%14);
+  if (value == 1) {
+      games[msg.sender]._hasAce == true;
+      return (value, 'Ace');
+  } else if (value == 2) {
+      return (value, 'Two');
+  } else if (value == 3) {
+      return (value, 'Three');
+  } else if (value == 4) {
+      return (value, 'Four');
+  } else if (value == 5) {
+      return (value, 'Five');
+  } else if (value == 6) {
+      return (value, 'Six');
+  } else if (value == 7) {
+      return (value, 'Seven');
+  } else if (value == 8) {
+      return (value, 'Eight');
+  } else if (value == 9) {
+      return (value, 'Nine');
+  } else if (value == 10) {
+      return (value, 'Ten');
+  } else if (value == 11) {
+      return (10, 'Jack');
+  } else if (value == 12) {
+      return (10, 'Queen');
+  } else if (value == 13) {
+      return (10, 'King');
+  }
+  // To keep random more random and unpredictable
+  if (_nonce > 60000) {
+      _nonce = value;
+  }
+  }
+
+  // Function to initialise a new player
+  function setPlayer(address _address, uint256 _investment) private {
+      games[_address]._playerAddress = _address; // Address to identify the player
+      games[_address]._currentBalance = _investment; // Current balance on the contract
+      games[_address]._currentBet = 0; // Bet is zero, because new player
+      games[_address]._init = true; // Player is initialised and can now access more functions
+      clearCards();
+    }
+
+  // PRIVATE FUNCTIONS END
+
+  // FUNCTIONS END
+
 }
