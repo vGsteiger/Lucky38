@@ -10,6 +10,10 @@ pragma solidity 0.4.26;
 contract BlackJack {
 
   // DECLARATION START
+  
+  //Events 
+
+  //Event for messages written out so it s
 
   // Decided for a game struct to save the players
   struct Game {
@@ -263,9 +267,9 @@ contract BlackJack {
                         }
                         // Check if now has Blackjack to win:
                         if (getCurrentCardValue() == 21) {
-                            uint currentWin = ((games[msg.sender]._currentBet/100)*5);
-                            _fees -= currentWin;
-                            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
+                            uint currentWin1 = ((games[msg.sender]._currentBet/100)*5);
+                            _fees -= currentWin1;
+                            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin1;
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
                             return "BlackJack! You won!";
@@ -344,9 +348,9 @@ contract BlackJack {
 
         // Player won with more points
         if(getCurrentDealerCardValue() < getCurrentCardValue()) {
-            uint currentWin = ((games[msg.sender]._currentBet/100)*5);
-            _fees -= currentWin;
-            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
+            uint currentWin2 = ((games[msg.sender]._currentBet/100)*5);
+            _fees -= currentWin2;
+            games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin2;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
