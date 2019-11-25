@@ -13,7 +13,8 @@ contract BlackJack {
   
   //Events 
 
-  //Event for messages written out so it s
+  //Event for String messages
+  event Message(address player, string message);
 
   // Decided for a game struct to save the players
   struct Game {
@@ -187,10 +188,10 @@ contract BlackJack {
         games[msg.sender]._currentBet = 0;
         games[msg.sender]._turn = false;
         games[msg.sender]._deal = false;
-        return "BlackJack! You won!";
+        emit Message(msg.sender, "BlackJack! You won!");
     }
-    return "Your turn, how do you want to proceed? You can either hit another card or stand.";
-    }
+    emit Message(msg.sender, "Your turn, how do you want to proceed? You can either hit another card or stand.");
+  }
 
     // Does not return String atm/something is buggy
     function hit() inRound  onlyInitialisedPlayer public returns (string) {
@@ -515,7 +516,7 @@ function randomCard() private returns (uint, string) {
   if (_nonce > 60000) {
       _nonce = value;
   }
-  }
+}
 
   // Function to initialise a new player
   function setPlayer(address _address, uint256 _investment) private {
@@ -524,7 +525,7 @@ function randomCard() private returns (uint, string) {
       games[_address]._currentBet = 0; // Bet is zero, because new player
       games[_address]._init = true; // Player is initialised and can now access more functions
       clearCards();
-    }
+  }
 
   // PRIVATE FUNCTIONS END
 
