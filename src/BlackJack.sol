@@ -23,13 +23,10 @@ contract BlackJack {
     uint _currentBet;
     uint _randomNumber;
     uint _cardTotal;
-    uint _currentInsurance;
-    uint _insurance;
     bool _deal;
     bool _turn;
     bool _init;
     bool _hasAce;
-    bool _insured;
     Cards[22] _currentHand;
     Cards[22] _dealerHand;
   }
@@ -142,7 +139,6 @@ contract BlackJack {
 
   function deal() onlyInitialisedPlayer outRound madeBet public returns (string) {
     // Set the stage for a game
-    games[msg.sender]._insured == false;
     games[msg.sender]._turn = true;
     games[msg.sender]._deal = true;
     clearCards();
@@ -222,9 +218,6 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            if(games[msg.sender]._insured == true) {
-              cashOutInsurance();
-            }
             emit Message(msg.sender, "Draw, you get your money back.");
             return "Draw, you get your money back.";
         }
@@ -236,7 +229,6 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            insuranceToCasino();
             emit Message(msg.sender, "BlackJack! You won!");
             return "BlackJack! You won!";
         }
@@ -246,7 +238,6 @@ contract BlackJack {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            insuranceToCasino();
             emit Message(msg.sender, "You lost. You will get nothing back.");
             return "You lost. You will get nothing back.";
         }
@@ -266,9 +257,6 @@ contract BlackJack {
                             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
-                            if(games[msg.sender]._insured == true) {
-                              cashOutInsurance();
-                            }
                             emit Message(msg.sender, "Draw, you get your money back.");
                             return "Draw, you get your money back.";
                         }
@@ -279,7 +267,6 @@ contract BlackJack {
                             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin1;
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
-                            insuranceToCasino();
                             emit Message(msg.sender, "BlackJack! You won!");
                             return "BlackJack! You won!";
                         }
@@ -291,7 +278,6 @@ contract BlackJack {
                 _fees += games[msg.sender]._currentBet;
                 games[msg.sender]._currentBet = 0;
                 games[msg.sender]._turn = false;
-                insuranceToCasino();
                 emit Message(msg.sender, "Draw, you get your money back.");
                 return "You lost. You will get nothing back.";
             }
@@ -310,9 +296,6 @@ contract BlackJack {
           games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
           games[msg.sender]._currentBet = 0;
           games[msg.sender]._turn = false;
-          if(games[msg.sender]._insured == true) {
-            cashOutInsurance();
-          }
           emit Message(msg.sender, "Draw, you get your money back.");
           return "Draw, you get your money back.";
         }
@@ -321,9 +304,6 @@ contract BlackJack {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            if(games[msg.sender]._insured == true) {
-              cashOutInsurance();
-            }
             emit Message(msg.sender, "The dealer had BlackJack. You lost. You will get nothing back.");
             return "The dealer had BlackJack. You lost. You will get nothing back.";
         }
@@ -345,7 +325,6 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            insuranceToCasino();
             emit Message(msg.sender, "You won! The dealer had more than 21");
             return "You won! The dealer had more than 21";
         }
@@ -355,7 +334,6 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            insuranceToCasino();
             emit Message(msg.sender, "Draw, you get your money back.");
             return "Draw, you get your money back.";
         }
@@ -367,7 +345,6 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin2;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            insuranceToCasino();
             emit Message(msg.sender, "You won! You had more than the dealer");
             return "You won! You had more than the dealer";
         }
@@ -377,26 +354,12 @@ contract BlackJack {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            insuranceToCasino();
             emit Message(msg.sender, "Draw, you get your money back.");
             return "You lost. You had less than the dealer.";
             }
     }
 
   // GAME FUNCTIONS END
-
-  // INSURANCE FUNCTION START
-
-  // Insure the game if dealers first card was an ace
-  function insureGame() public inRound onlyInitialisedPlayer returns (string) {
-    require(games[msg.sender]._deal, "You can only insure game after deal");
-    require(games[msg.sender]._dealerHand[0]._value == 1 || games[msg.sender]._dealerHand[0]._value == 11, "Dealer does not have an ace.");
-    games[msg.sender]._insured = true;
-    games[msg.sender]._insurance = games[msg.sender]._currentBet / 2;
-    games[msg.sender]._currentBalance -= games[msg.sender]._insurance;
-  }
-
-  // INSURANCE FUNCTION END
 
   // PUBLIC WITHDRAWAL FUNCTIONS START
 
@@ -468,23 +431,6 @@ contract BlackJack {
           value += games[msg.sender]._currentHand[i]._value;
       }
       return value;
-  }
-
-  // Function to cash out the insurance in case of loosing if player had insurance
-  function cashOutInsurance() private {
-    if(games[msg.sender]._insured == true){
-    games[msg.sender]._currentBalance += games[msg.sender]._insurance * 2;
-    games[msg.sender]._insurance = 0;
-    _fees -= games[msg.sender]._insurance;
-    }
-  }
-
-  // Function to withdraw insurance if player lost or won
-  function insuranceToCasino() private {
-    if(games[msg.sender]._insured == true) {
-    _fees += games[msg.sender]._insurance;
-    games[msg.sender]._insurance = 0;
-    }
   }
 
   // clear cards for a new game/set them all to zero
