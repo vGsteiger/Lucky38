@@ -189,8 +189,10 @@ contract BlackJack {
         games[msg.sender]._turn = false;
         games[msg.sender]._deal = false;
         emit Message(msg.sender, "BlackJack! You won!");
+        return "BlackJack! You won!";
     }
     emit Message(msg.sender, "Your turn, how do you want to proceed? You can either hit another card or stand.");
+    return "Your turn, how do you want to proceed? You can either hit another card or stand.";
   }
 
     // Does not return String atm/something is buggy
@@ -223,6 +225,7 @@ contract BlackJack {
             if(games[msg.sender]._insured == true) {
               cashOutInsurance();
             }
+            emit Message(msg.sender, "Draw, you get your money back.");
             return "Draw, you get your money back.";
         }
 
@@ -233,8 +236,9 @@ contract BlackJack {
             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            return "BlackJack! You won!";
             insuranceToCasino();
+            emit Message(msg.sender, "BlackJack! You won!");
+            return "BlackJack! You won!";
         }
 
         // If player bust and no chance to change an ace to 1:
@@ -242,8 +246,9 @@ contract BlackJack {
             _fees += games[msg.sender]._currentBet;
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
-            return "You lost. You will get nothing back.";
             insuranceToCasino();
+            emit Message(msg.sender, "You lost. You will get nothing back.");
+            return "You lost. You will get nothing back.";
         }
 
         // If bust but player has an ace:
@@ -264,6 +269,7 @@ contract BlackJack {
                             if(games[msg.sender]._insured == true) {
                               cashOutInsurance();
                             }
+                            emit Message(msg.sender, "Draw, you get your money back.");
                             return "Draw, you get your money back.";
                         }
                         // Check if now has Blackjack to win:
@@ -273,8 +279,9 @@ contract BlackJack {
                             games[msg.sender]._currentBalance += games[msg.sender]._currentBet + currentWin1;
                             games[msg.sender]._currentBet = 0;
                             games[msg.sender]._turn = false;
-                            return "BlackJack! You won!";
                             insuranceToCasino();
+                            emit Message(msg.sender, "BlackJack! You won!");
+                            return "BlackJack! You won!";
                         }
                     }
                 }
@@ -284,11 +291,13 @@ contract BlackJack {
                 _fees += games[msg.sender]._currentBet;
                 games[msg.sender]._currentBet = 0;
                 games[msg.sender]._turn = false;
-                return "You lost. You will get nothing back.";
                 insuranceToCasino();
+                emit Message(msg.sender, "Draw, you get your money back.");
+                return "You lost. You will get nothing back.";
             }
         }
         // If not lost or won, new card or stand:
+        emit Message(msg.sender, "Got another card, your choice now, hit or stand?");
         return "Got another card, your choice now, hit or stand?";
     }
 
@@ -304,6 +313,7 @@ contract BlackJack {
           if(games[msg.sender]._insured == true) {
             cashOutInsurance();
           }
+          emit Message(msg.sender, "Draw, you get your money back.");
           return "Draw, you get your money back.";
         }
         // If the dealer got blackjack (player gets checked in hit/deal) he wins.
@@ -314,6 +324,7 @@ contract BlackJack {
             if(games[msg.sender]._insured == true) {
               cashOutInsurance();
             }
+            emit Message(msg.sender, "The dealer had BlackJack. You lost. You will get nothing back.");
             return "The dealer had BlackJack. You lost. You will get nothing back.";
         }
         uint counter = 2;
@@ -335,6 +346,7 @@ contract BlackJack {
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
+            emit Message(msg.sender, "You won! The dealer had more than 21");
             return "You won! The dealer had more than 21";
         }
 
@@ -344,6 +356,7 @@ contract BlackJack {
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
+            emit Message(msg.sender, "Draw, you get your money back.");
             return "Draw, you get your money back.";
         }
 
@@ -355,6 +368,7 @@ contract BlackJack {
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
+            emit Message(msg.sender, "You won! You had more than the dealer");
             return "You won! You had more than the dealer";
         }
 
@@ -364,6 +378,7 @@ contract BlackJack {
             games[msg.sender]._currentBet = 0;
             games[msg.sender]._turn = false;
             insuranceToCasino();
+            emit Message(msg.sender, "Draw, you get your money back.");
             return "You lost. You had less than the dealer.";
             }
     }
