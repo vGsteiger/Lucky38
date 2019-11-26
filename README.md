@@ -15,10 +15,7 @@ This smart contract consists of a runnable version of Blackjack which will be de
 8. The player can then either cash out or play again.
 
 ## Interface
-The game can be played via remix by connecting to the contract address and having a metamask add on on the rinkeby testnet with sufficient funds. 
-
-## Demo
-The demo will be aviable soon.
+The game can be played via remix by connecting to the contract address and having a metamask addon on the rinkeby testnet with sufficient funds. 
 
 ## About the Project:
 This was a project for the lecture 52354-01 Smart Contracts and Decentralized Blockchain Applications in the autumn semester of 2019.
