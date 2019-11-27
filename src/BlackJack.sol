@@ -292,6 +292,7 @@ contract BlackJack {
     function stand() inRound  onlyInitialisedPlayer public returns (string) {
         games[msg.sender]._deal = false;
 
+        // Both Blakjack
         if (getCurrentDealerCardValue() == 21 && getCurrentCardValue() == 21) {
           games[msg.sender]._currentBalance += games[msg.sender]._currentBet;
           games[msg.sender]._currentBet = 0;
