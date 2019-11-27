@@ -16,6 +16,10 @@ This smart contract consists of a runnable version of Blackjack which will be de
 ## Interface
 The game can be played via remix by connecting to the contract address and having a metamask addon on the rinkeby testnet with sufficient funds. 
 
+## Website:
+
+https://lucky38.ch/
+
 ## About the Project:
 This was a project for the lecture 52354-01 Smart Contracts and Decentralized Blockchain Applications in the autumn semester of 2019.
 
